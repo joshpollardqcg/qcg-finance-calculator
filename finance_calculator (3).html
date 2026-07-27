@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QCG Finance Agreement Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --purple: #AC4B82;
+    --purple-2: #BD719C;
+    --purple-3: #D19BB9;
+    --grey: #202331;
+    --grey-2: #2B2E3E;
+    --offwhite: #F4F4F4;
+    --paper: #fbfaf9;
+    --panel: #ffffff;
+    --line: #e7e2e6;
+    --muted: #7a7581;
+    --danger: #a13d2f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Aptos', 'Segoe UI', 'Calibri', Arial, sans-serif;
+    background: var(--paper);
+    color: var(--grey);
+  }
+  .band {
+    background: var(--purple);
+    padding: 36px 24px 30px;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+  }
+  .band::after {
+    content: '';
+    position: absolute;
+    right: -60px; top: -60px;
+    width: 220px; height: 220px;
+    border: 2px solid rgba(255,255,255,0.18);
+    border-radius: 50%;
+  }
+  .band::before {
+    content: '';
+    position: absolute;
+    right: 10px; top: 30px;
+    width: 140px; height: 140px;
+    border: 2px solid rgba(255,255,255,0.14);
+    border-radius: 50%;
+  }
+  .band-inner { max-width: 980px; margin: 0 auto; position: relative; z-index: 1; }
+  .eyebrow {
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    opacity: 0.85;
+    margin-bottom: 6px;
+  }
+  h1 {
+    font-family: 'Jost', sans-serif;
+    font-weight: 400;
+    font-size: 34px;
+    margin: 0 0 6px;
+    letter-spacing: 0.01em;
+  }
+  .subtitle { opacity: 0.9; font-size: 14px; max-width: 560px; line-height: 1.5; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 22px 24px 60px; }
+  .grid {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 20px;
+  }
+  @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(32,35,49,0.04);
+  }
+  label {
+    display: block;
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin-top: 16px;
+    margin-bottom: 5px;
+    font-weight: 600;
+  }
+  label:first-child { margin-top: 0; }
+  input[type=text], input[type=number], select {
+    width: 100%;
+    padding: 9px 11px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 14px;
+    background: var(--offwhite);
+    color: var(--grey);
+  }
+  input:focus, select:focus { outline: 2px solid var(--purple-3); outline-offset: 1px; }
+  .toggle-row { display: flex; gap: 8px; margin-top: 4px; }
+  .toggle-btn {
+    flex: 1;
+    padding: 9px;
+    border: 1px solid var(--line);
+    background: var(--offwhite);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    text-align: center;
+    color: var(--grey);
+    transition: background 0.15s, color 0.15s;
+  }
+  .toggle-btn.active { background: var(--purple); color: #fff; border-color: var(--purple); }
+  .band-note {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 6px;
+    line-height: 1.4;
+  }
+  .section-title {
+    font-family: 'Jost', sans-serif;
+    font-size: 17px;
+    font-weight: 500;
+    color: var(--purple);
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+    margin-top: 0;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table td { padding: 7px 4px; }
+  table tr td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+  table tr.total td { border-top: 1px solid var(--grey); font-weight: 700; padding-top: 10px; color: var(--grey); }
+  .instalment-list { font-size: 13px; margin-top: 8px; }
+  .instalment-list div { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px dotted var(--line); }
+  .tabs { display: flex; gap: 4px; margin-bottom: 14px; }
+  .tab {
+    padding: 9px 16px;
+    font-size: 13px;
+    background: var(--offwhite);
+    border-radius: 8px 8px 0 0;
+    cursor: pointer;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .tab.active { background: var(--panel); color: var(--purple); box-shadow: 0 -1px 0 var(--purple) inset; }
+  .tabpanel { display: none; }
+  .tabpanel.active { display: block; }
+  .script-box {
+    font-size: 13.5px;
+    line-height: 1.65;
+    white-space: pre-wrap;
+    background: var(--offwhite);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 18px;
+    max-height: 620px;
+    overflow-y: auto;
+    color: var(--grey-2);
+  }
+  .qtext { color: var(--purple); font-style: italic; }
+  .flag { color: var(--danger); font-weight: bold; }
+  .commission-box {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 16px;
+    border-top: 1px dashed var(--line);
+    padding-top: 12px;
+    line-height: 1.6;
+  }
+  .commission-box strong { color: var(--grey); }
+  .copy-btn {
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 8px 14px;
+    background: var(--grey);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-bottom: 12px;
+  }
+  .copy-btn:hover { background: var(--purple); }
+</style>
+</head>
+<body>
+<div class="band">
+  <div class="band-inner">
+    <div class="eyebrow">Quality Care Group</div>
+    <h1>Finance Agreement Builder</h1>
+    <div class="subtitle">Work out the deposit, interest and instalment breakdown for a client's premium finance agreement, then read the matching call script straight off the screen.</div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="grid">
+    <!-- INPUT PANEL -->
+    <div class="panel">
+      <div class="section-title">Deal details</div>
+
+      <label>Client / company name</label>
+      <input type="text" id="clientName" placeholder="e.g. Stilecroft MPS Limited">
+
+      <label>Total premium to be financed (£)</label>
+      <input type="number" id="premium" value="10000" step="0.01">
+
+      <label>Finance provider</label>
+      <select id="provider">
+        <option value="PCL">Premium Credit (PCL)</option>
+        <option value="KEYS">Keys Finance</option>
+        <option value="CB">Close Brothers (CBPF)</option>
+      </select>
+
+      <label>20% deposit paid upfront?</label>
+      <div class="toggle-row">
+        <div class="toggle-btn active" id="depYes" onclick="setDeposit(true)">Yes</div>
+        <div class="toggle-btn" id="depNo" onclick="setDeposit(false)">No</div>
+      </div>
+
+      <div id="pclCompanyTypeWrap">
+        <label>Client legal structure (PCL default fee only)</label>
+        <select id="companyType">
+          <option value="ltd">Ltd Company</option>
+          <option value="other">Sole Trader / LLP / Partnership</option>
+        </select>
+      </div>
+
+      <div id="depositMethodWrap" style="display:none">
+        <label>Deposit payment method</label>
+        <select id="depositMethod">
+          <option value="BACS">BACS</option>
+          <option value="Card">Card Payment</option>
+        </select>
+      </div>
+
+      <div class="section-title" style="margin-top:22px;">Provider script details</div>
+      <div class="band-note">Fill these in per provider before reading the script out. Default fee auto-fills but can be overridden.</div>
+
+      <label>Provider name (as read to client)</label>
+      <input type="text" id="providerName" value="Premium Credit Limited">
+
+      <label>Provider contact number</label>
+      <input type="text" id="providerPhone" value="03447369836">
+
+      <label>Default (missed payment) fee override (£)</label>
+      <input type="number" id="defaultFeeOverride" placeholder="auto">
+    </div>
+
+    <!-- OUTPUT PANEL -->
+    <div class="panel">
+      <div class="tabs">
+        <div class="tab active" id="tabSummaryBtn" onclick="showTab('summary')">Summary Calculation</div>
+        <div class="tab" id="tabScriptBtn" onclick="showTab('script')">Handler Script</div>
+      </div>
+
+      <div class="tabpanel active" id="tabSummary">
+        <div class="section-title">Summary calculation</div>
+        <table id="summaryTable"></table>
+        <div class="section-title" style="margin-top:18px;">Instalment schedule</div>
+        <div class="instalment-list" id="instalmentList"></div>
+        <div class="commission-box" id="commissionBox"></div>
+      </div>
+
+      <div class="tabpanel" id="tabScript">
+        <button class="copy-btn" onclick="copyScript()">Copy script to clipboard</button>
+        <div class="script-box" id="scriptBox"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let depositTaken = true;
+
+function setDeposit(val) {
+  depositTaken = val;
+  document.getElementById('depYes').classList.toggle('active', val);
+  document.getElementById('depNo').classList.toggle('active', !val);
+  document.getElementById('depositMethodWrap').style.display = val ? 'block' : 'none';
+  recalc();
+}
+
+function fmt(n) {
+  return '£' + n.toLocaleString('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+}
+
+function providerLabel(p) {
+  return p === 'PCL' ? 'Premium Credit (PCL)' : p === 'KEYS' ? 'Keys Finance' : 'Close Brothers (CBPF)';
+}
+
+// Core calc, mirrors the source spreadsheets exactly.
+function calculate() {
+  const premium = parseFloat(document.getElementById('premium').value) || 0;
+  const provider = document.getElementById('provider').value;
+  const companyType = document.getElementById('companyType').value;
+
+  const deposit = depositTaken ? premium * 0.2 : 0;
+  const amountFinanced = premium - deposit;
+  const interestRate = 0.094; // flat across all 3 providers currently
+  const interest = amountFinanced * interestRate;
+
+  let facilityFee = 0;
+  let band = '';
+  let overriderRate = 0, netRate = 0;
+  let defaultFee = 0;
+
+  if (provider === 'PCL') {
+    if (amountFinanced < 1000) facilityFee = 10;
+    else if (amountFinanced < 5000) facilityFee = 25;
+    else facilityFee = 45;
+    overriderRate = 0.042; netRate = 0.052; // flat, not banded for PCL
+    defaultFee = companyType === 'ltd' ? 120 : 25;
+  } else if (provider === 'KEYS') {
+    facilityFee = 35; // flat regardless of band
+    if (amountFinanced > 50000) { overriderRate = 0.0575; netRate = 0.0365; band = 'Loans over £50K'; }
+    else { overriderRate = 0.053; netRate = 0.041; band = 'Loans under £50K'; }
+    defaultFee = 50;
+  } else if (provider === 'CB') {
+    facilityFee = 0; // CBPF never charges a fee
+    if (amountFinanced >= 5000) { overriderRate = 0.0486; netRate = 0.0454; band = 'Loans over £5K'; }
+    else { overriderRate = 0.0456; netRate = 0.0484; band = 'Loans less than £5K'; }
+    defaultFee = 25;
+  }
+
+  const defaultFeeOverrideVal = document.getElementById('defaultFeeOverride').value;
+  const defaultFeeFinal = defaultFeeOverrideVal !== '' ? parseFloat(defaultFeeOverrideVal) : defaultFee;
+
+  const totalPayable = amountFinanced + interest + facilityFee;
+  const baseInstalment = (amountFinanced + interest) / 10;
+  const firstInstalment = baseInstalment + facilityFee;
+
+  const instalments = [firstInstalment];
+  for (let i = 0; i < 9; i++) instalments.push(baseInstalment);
+
+  return {
+    premium, provider, deposit, amountFinanced, interestRate, interest,
+    facilityFee, band, overriderRate, netRate, defaultFee: defaultFeeFinal,
+    totalPayable, baseInstalment, firstInstalment, instalments
+  };
+}
+
+function recalc() {
+  const c = calculate();
+
+  document.getElementById('pclCompanyTypeWrap').style.display = c.provider === 'PCL' ? 'block' : 'none';
+
+  // auto-fill default fee box placeholder unless user typed an override
+  const defBox = document.getElementById('defaultFeeOverride');
+  if (!defBox.dataset.userTouched) defBox.placeholder = 'auto: £' + c.defaultFee.toFixed(2);
+
+  // Summary table
+  const rows = [
+    ['Total premium', fmt(c.premium)],
+    depositTaken ? ['Deposit (20%)', fmt(c.deposit)] : null,
+    ['Amount financed', fmt(c.amountFinanced)],
+    ['Interest rate applied', (c.interestRate*100).toFixed(1) + '%'],
+    ['Finance charge (interest)', fmt(c.interest)],
+    ['Facility / arrangement fee', fmt(c.facilityFee)],
+    ['Total payable', fmt(c.totalPayable)],
+  ].filter(Boolean);
+
+  let html = '';
+  rows.forEach((r, i) => {
+    const cls = (i === rows.length - 1) ? 'total' : '';
+    html += `<tr class="${cls}"><td>${r[0]}</td><td>${r[1]}</td></tr>`;
+  });
+  document.getElementById('summaryTable').innerHTML = html;
+
+  // Instalment list
+  let instHtml = '';
+  c.instalments.forEach((amt, i) => {
+    const label = i === 0 ? '1st instalment (incl. facility fee)' : `${i+1}${['','st','nd','rd'][i+1] || 'th'} instalment`.replace('11th','11th').replace('1st instalment','1st instalment');
+    instHtml += `<div><span>Instalment ${i+1}${i===0 ? ' (incl. facility fee)' : ''}</span><span>${fmt(amt)}</span></div>`;
+  });
+  document.getElementById('instalmentList').innerHTML = instHtml;
+
+  // Commission box (internal use)
+  let commHtml = `<strong>Internal / QCG use only</strong> — not read to client<br>`;
+  commHtml += `Provider band: ${c.band || 'n/a (flat rate)'}<br>`;
+  commHtml += `QCG overrider: ${(c.overriderRate*100).toFixed(2)}% (${fmt(c.amountFinanced * c.overriderRate)})<br>`;
+  commHtml += `Net interest to provider: ${(c.netRate*100).toFixed(2)}% (${fmt(c.amountFinanced * c.netRate)})`;
+  document.getElementById('commissionBox').innerHTML = commHtml;
+
+  buildScript(c);
+}
+
+function ordinal(n) {
+  const s = ["th","st","nd","rd"], v = n % 100;
+  return n + (s[(v-20)%10] || s[v] || s[0]);
+}
+
+function buildScript(c) {
+  const clientName = document.getElementById('clientName').value || '[Client Name]';
+  const providerName = document.getElementById('providerName').value || 'the finance provider';
+  const providerPhone = document.getElementById('providerPhone').value || '[phone number]';
+  const depositMethod = document.getElementById('depositMethod').value;
+
+  const followOnCount = 9;
+  const followOnAmt = fmt(c.baseInstalment);
+
+  let s = '';
+  s += `We use ${providerName} to provide finance as part of a panel of lenders. We are acting as the credit broker. We may receive a commission for introducing customers to them. This commission is included in the total cost of your agreement and will be confirmed in writing by your finance provider.\n\n`;
+  s += `[Q] Do you agree for your personal data to be passed to ${providerName} for the administration of your agreement?\n\n`;
+  s += `If you have any questions about your agreement you can contact ${providerName} on ${providerPhone}.\n\n`;
+  s += `----------------------------------------\n`;
+  s += `The total amount you'll pay to finance your insurance is        ${fmt(c.totalPayable)}\n`;
+  s += `which includes interest of                                      ${fmt(c.interest)}\n`;
+  if (c.facilityFee > 0) {
+    s += `and a facility fee included in the first instalment of         ${fmt(c.facilityFee)}\n`;
+  }
+  s += `The first instalment will be                                    ${fmt(c.firstInstalment)}\n`;
+  s += `followed by ${followOnCount} monthly instalments of                             ${followOnAmt}\n`;
+  if (depositTaken) {
+    s += `Your 20% deposit paid upfront would be                          ${fmt(c.deposit)}\n`;
+  }
+  s += `----------------------------------------\n\n`;
+  s += `To assess your application, ${providerName} may use credit scoring, credit reference agencies and automated decision-making systems.\n\n`;
+  s += `[Q] Taking into account the company's recent and projected income and expenditure, do you have sufficient free cash flow to meet the minimum monthly repayments for this agreement?\n`;
+  s += `   Yes -> proceed.   No -> do not offer finance\n\n`;
+  s += `[Q] Are you aware of any circumstances that could affect the ability of the company to meet the minimum repayments on time for the lifetime of this agreement?\n`;
+  s += `   No -> proceed.   Yes -> do not offer finance\n\n`;
+  s += `${providerName} will contact you via email requesting an electronic signature be completed within 27 days of the inception of the agreement. In the event this is not completed you may need to find another way to pay for the insurance.\n\n`;
+  s += `There are some important things you need to know about this agreement:\n\n`;
+  s += `- It's only appropriate for funding your insurance policy\n`;
+  s += `- If you fail to pay an instalment on time you'll be charged a default fee of ${fmt(c.defaultFee)}, this will be collected with the missed payment\n`;
+  s += `- If ${providerName} is unable to collect under your Direct Debit, they may cancel your agreement. You'll be liable for all sums owing and the total annual charges\n`;
+  s += `- Missing payments may affect your credit rating and your insurance policy may be cancelled\n`;
+  s += `- If you don't sign and return your agreement, you may need to find another way to pay for your insurance policy\n`;
+  s += `- You can withdraw from the agreement free of charge within 14 days starting the day after you enter into the agreement. If you do, you'll have to pay back any credit you've received. You can give notice by phoning, emailing or writing to ${providerName}\n`;
+  s += `- Please note that as you are a company / partnership consisting of four or more persons you will not benefit from protections under the Consumer Credit Act 1974 or the Consumer Credit Sourcebook of the Financial Conduct Authority\n\n`;
+  s += `[Q] Would you like to set up your payments now?\n\n`;
+  s += `[Q] Are you the account holder of a UK Bank or Building Society and you are the only person required to authorise debits?\n\n`;
+  s += `[FLAG] If customer answers no to either question, arrange to send paper version of DDI and close call.\n\n`;
+  s += `[Q] Please confirm the name, sort code and account number of the account you wish to be debited?\n`;
+  s += `(Take details)\n\n`;
+  s += `[Q] Let me repeat them back to you. The account name is [account name], sort code is [sort code], the account number is [account number], is this correct?\n\n`;
+  s += `If there are any changes to your Direct Debit, ${providerName} will always give you two working days' notice.\n\n`;
+  s += `The company name which will appear on your bank statement will be ${providerName}.\n\n`;
+  s += `All Direct Debits are protected by a guarantee.\n\n`;
+  s += `[Q] Would you like me to read that guarantee to you now or are you happy to wait for the copy in your Welcome Pack?\n\n`;
+  s += `[ONLY IF CUSTOMER REQUESTS]\n`;
+  s += `In the future if there is a change to the date, amount or frequency of your Direct Debit, ${providerName} will always give you two working days' notice in advance of your account being debited. In the event of an error, you are entitled to an immediate refund from your bank or building society. You have the right to cancel at any time and this guarantee is offered by all the banks and building societies that accept instructions to pay Direct Debits. A copy of the safeguards under the Direct Debit Guarantee will be sent to you with the confirmation letter.\n\n`;
+  s += `Your Direct Debit Instruction is now set up.\n\n`;
+  if (depositTaken) {
+    s += `----------------------------------------\n`;
+    s += `[Q] Please confirm method of payment for your deposit of ${fmt(c.deposit)} (BACS/Card Payment etc.)\n`;
+    s += `Selected: ${depositMethod}\n`;
+    if (depositMethod === 'Card') {
+      s += `[FLAG] Card payment chosen for the deposit — transfer the client to Accounts now.\n`;
+    }
+  }
+
+  s = s.replace(new RegExp(clientName, 'g'), clientName); // placeholder for future name-personalisation
+  document.getElementById('scriptBox').innerHTML = escapeHtml(s)
+    .replace(/\[Q\](.*?)(?=\n)/g, '<span class="qtext">[Q]$1</span>')
+    .replace(/\[FLAG\](.*?)(?=\n)/g, '<span class="flag">[FLAG]$1</span>')
+    .replace(/\n/g, '<br>');
+  window._rawScript = s;
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function copyScript() {
+  navigator.clipboard.writeText(window._rawScript || '').then(() => {
+    const btn = document.querySelector('.copy-btn');
+    const old = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = old, 1200);
+  });
+}
+
+function showTab(name) {
+  document.getElementById('tabSummary').classList.toggle('active', name === 'summary');
+  document.getElementById('tabScript').classList.toggle('active', name === 'script');
+  document.getElementById('tabSummaryBtn').classList.toggle('active', name === 'summary');
+  document.getElementById('tabScriptBtn').classList.toggle('active', name === 'script');
+}
+
+document.getElementById('provider').addEventListener('change', function() {
+  const p = this.value;
+  const nameBox = document.getElementById('providerName');
+  const phoneBox = document.getElementById('providerPhone');
+  const namePresets = {
+    PCL: 'Premium Credit Limited',
+    KEYS: 'Keys Finance',
+    CB: 'Close Brothers Premium Finance'
+  };
+  const phonePresets = {
+    PCL: '03447369836',
+    KEYS: '02890660791',
+    CB: '03333218566'
+  };
+  nameBox.value = namePresets[p];
+  phoneBox.value = phonePresets[p];
+  recalc();
+});
+document.getElementById('defaultFeeOverride').addEventListener('input', function() {
+  this.dataset.userTouched = 'true';
+  recalc();
+});
+['premium','companyType','providerName','providerPhone','clientName','depositMethod'].forEach(id => {
+  document.getElementById(id).addEventListener('input', recalc);
+  document.getElementById(id).addEventListener('change', recalc);
+});
+
+recalc();
+</script>
+</body>
+</html>
