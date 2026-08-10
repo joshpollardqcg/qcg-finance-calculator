@@ -361,7 +361,7 @@ function recalc() {
     ['Interest rate applied', (c.interestRate*100).toFixed(1) + '%'],
     ['Finance charge (interest)', fmt(c.interest)],
     ['Facility / arrangement fee', fmt(c.facilityFee)],
-    ['Total payable', fmt(c.totalPayable)],
+    ['Total amount to be financed', fmt(c.totalPayable)],
   ].filter(Boolean);
 
   let html = '';
