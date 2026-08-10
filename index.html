@@ -153,8 +153,7 @@
   .tabpanel.active { display: block; }
   .script-box {
     font-size: 13.5px;
-    line-height: 1.65;
-    white-space: pre-wrap;
+    line-height: 1.6;
     background: var(--offwhite);
     border: 1px solid var(--line);
     border-radius: 8px;
@@ -165,6 +164,78 @@
   }
   .qtext { color: var(--purple); font-style: italic; }
   .flag { color: var(--danger); font-weight: bold; }
+  .s-p { margin: 0 0 14px; }
+  .s-q {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    background: #fff;
+    border-left: 3px solid var(--purple);
+    border-radius: 0 6px 6px 0;
+    padding: 10px 12px;
+    margin: 0 0 4px;
+  }
+  .s-q-tag {
+    flex: none;
+    background: var(--purple);
+    color: #fff;
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 4px;
+    letter-spacing: 0.04em;
+  }
+  .s-sub { font-size: 12.5px; color: var(--muted); margin: 4px 0 14px 12px; font-style: italic; }
+  .s-flag {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    background: #fbeceb;
+    border-left: 3px solid var(--danger);
+    border-radius: 0 6px 6px 0;
+    padding: 10px 12px;
+    margin: 0 0 14px;
+    color: var(--danger);
+    font-weight: 600;
+  }
+  .s-flag-tag {
+    flex: none;
+    background: var(--danger);
+    color: #fff;
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 4px;
+    letter-spacing: 0.04em;
+  }
+  .s-note {
+    font-size: 12.5px;
+    color: var(--muted);
+    background: #fff;
+    border: 1px dashed var(--line);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin: 0 0 14px;
+  }
+  .s-bullets { margin: 0 0 16px; padding-left: 20px; }
+  .s-bullets li { margin-bottom: 6px; }
+  .s-figures {
+    background: var(--grey);
+    color: #fff;
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin: 4px 0 18px;
+  }
+  .s-figrow {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 5px 0;
+    font-size: 13.5px;
+    border-bottom: 1px solid rgba(255,255,255,0.12);
+  }
+  .s-figrow:last-child { border-bottom: none; }
+  .s-figval { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--purple-3); }
   .commission-box {
     font-size: 12px;
     color: var(--muted);
@@ -260,6 +331,7 @@
 
       <div class="tabpanel active" id="tabSummary">
         <div class="section-title">Summary calculation</div>
+        <button class="copy-btn" onclick="copySummary()">Copy summary (for Acturis)</button>
         <table id="summaryTable"></table>
         <div class="section-title" style="margin-top:18px;">Instalment schedule</div>
         <div class="instalment-list" id="instalmentList"></div>
@@ -293,7 +365,34 @@ function providerLabel(p) {
   return p === 'PCL' ? 'Premium Credit (PCL)' : p === 'KEYS' ? 'Keys Finance' : 'Close Brothers (CBPF)';
 }
 
-// Core calc, mirrors the source spreadsheets exactly.
+// APR calc per the actuarial method used under CONC/the Consumer Credit (Total Charge for Credit)
+// Regulations: solve for the periodic (monthly) rate that equates the amount financed to the
+// present value of the instalment stream, then annualise by compounding, not multiplying.
+// Assumption (per Sahaj/Emily): instalments fall at equal monthly intervals for all 3 providers,
+// first instalment 1 month after the amount is advanced.
+function calculateAPR(amountFinanced, instalments) {
+  if (amountFinanced <= 0) return 0;
+  function pv(monthlyRate) {
+    let total = 0;
+    instalments.forEach((amt, idx) => {
+      total += amt / Math.pow(1 + monthlyRate, idx + 1);
+    });
+    return total;
+  }
+  let lo = 0, hi = 2; // 0% to 200% monthly, comfortably wide bracket
+  for (let iter = 0; iter < 100; iter++) {
+    const mid = (lo + hi) / 2;
+    const diff = pv(mid) - amountFinanced;
+    if (Math.abs(diff) < 0.0000001) { lo = hi = mid; break; }
+    // pv is a decreasing function of rate
+    if (diff > 0) lo = mid; else hi = mid;
+  }
+  const monthlyRate = (lo + hi) / 2;
+  const apr = (Math.pow(1 + monthlyRate, 12) - 1) * 100;
+  return apr;
+}
+
+
 function calculate() {
   const premium = parseFloat(document.getElementById('premium').value) || 0;
   const provider = document.getElementById('provider').value;
@@ -331,21 +430,25 @@ function calculate() {
   const defaultFeeFinal = defaultFeeOverrideVal !== '' ? parseFloat(defaultFeeOverrideVal) : defaultFee;
 
   const totalPayable = amountFinanced + interest + facilityFee;
+  const totalChargeForCredit = interest + facilityFee;
   const baseInstalment = (amountFinanced + interest) / 10;
   const firstInstalment = baseInstalment + facilityFee;
 
   const instalments = [firstInstalment];
   for (let i = 0; i < 9; i++) instalments.push(baseInstalment);
 
+  const apr = calculateAPR(amountFinanced, instalments);
+
   return {
     premium, provider, deposit, amountFinanced, interestRate, interest,
     facilityFee, band, overriderRate, netRate, defaultFee: defaultFeeFinal,
-    totalPayable, baseInstalment, firstInstalment, instalments
+    totalPayable, totalChargeForCredit, apr, baseInstalment, firstInstalment, instalments
   };
 }
 
 function recalc() {
   const c = calculate();
+  window._lastCalc = c;
 
   document.getElementById('pclCompanyTypeWrap').style.display = c.provider === 'PCL' ? 'block' : 'none';
 
@@ -361,7 +464,9 @@ function recalc() {
     ['Interest rate applied', (c.interestRate*100).toFixed(1) + '%'],
     ['Finance charge (interest)', fmt(c.interest)],
     ['Facility / arrangement fee', fmt(c.facilityFee)],
-    ['Total amount to be financed', fmt(c.totalPayable)],
+    ['Total charge for credit', fmt(c.totalChargeForCredit)],
+    ['APR (representative)', c.apr.toFixed(1) + '%'],
+    ['Total amount repayable under finance agreement', fmt(c.totalPayable)],
   ].filter(Boolean);
 
   let html = '';
@@ -403,68 +508,124 @@ function buildScript(c) {
   const followOnCount = 9;
   const followOnAmt = fmt(c.baseInstalment);
 
-  let s = '';
-  s += `We use ${providerName} to provide finance as part of a panel of lenders. We are acting as the credit broker. We may receive a commission for introducing customers to them. This commission is included in the total cost of your agreement and will be confirmed in writing by your finance provider.\n\n`;
-  s += `[Q] Do you agree for your personal data to be passed to ${providerName} for the administration of your agreement?\n\n`;
-  s += `If you have any questions about your agreement you can contact ${providerName} on ${providerPhone}.\n\n`;
-  s += `----------------------------------------\n`;
-  s += `The total amount you'll pay to finance your insurance is        ${fmt(c.totalPayable)}\n`;
-  s += `which includes interest of                                      ${fmt(c.interest)}\n`;
-  if (c.facilityFee > 0) {
-    s += `and a facility fee included in the first instalment of         ${fmt(c.facilityFee)}\n`;
+  // Each block renders differently in HTML vs plain text copy.
+  // types: 'p' (paragraph), 'q' (question), 'flag', 'bullets' (array), 'figures' (array of [label,value]), 'note'
+  const blocks = [];
+
+  blocks.push({ type: 'p', text: `We use ${providerName} to provide finance as part of a panel of lenders. We are acting as the credit broker. We may receive a commission for introducing customers to them. This commission is included in the total cost of your agreement and will be confirmed in writing by your finance provider.` });
+  blocks.push({ type: 'q', text: `Do you agree for your personal data to be passed to ${providerName} for the administration of your agreement?` });
+  blocks.push({ type: 'p', text: `If you have any questions about your agreement you can contact ${providerName} on ${providerPhone}.` });
+
+  const figures = [
+    ["Total amount you'll pay to finance your insurance", fmt(c.totalPayable)],
+    ['Which includes interest of', fmt(c.interest)],
+  ];
+  if (c.facilityFee > 0) figures.push(['And a facility fee included in the first instalment of', fmt(c.facilityFee)]);
+  figures.push(['The first instalment will be', fmt(c.firstInstalment)]);
+  figures.push([`Followed by ${followOnCount} monthly instalments of`, followOnAmt]);
+  if (depositTaken) figures.push(['Your 20% deposit paid upfront would be', fmt(c.deposit)]);
+  blocks.push({ type: 'figures', items: figures });
+
+  blocks.push({ type: 'p', text: `To assess your application, ${providerName} may use credit scoring, credit reference agencies and automated decision-making systems.` });
+  blocks.push({ type: 'q', text: `Taking into account the company's recent and projected income and expenditure, do you have sufficient free cash flow to meet the minimum monthly repayments for this agreement?`, sub: 'Yes -> proceed.   No -> do not offer finance' });
+  blocks.push({ type: 'q', text: `Are you aware of any circumstances that could affect the ability of the company to meet the minimum repayments on time for the lifetime of this agreement?`, sub: 'No -> proceed.   Yes -> do not offer finance' });
+  blocks.push({ type: 'p', text: `${providerName} will contact you via email requesting an electronic signature be completed within 27 days of the inception of the agreement. In the event this is not completed you may need to find another way to pay for the insurance.` });
+
+  const bullets = [
+    `It's only appropriate for funding your insurance policy`,
+    `If you fail to pay an instalment on time you'll be charged a default fee of ${fmt(c.defaultFee)}, this will be collected with the missed payment`,
+  ];
+  if (c.provider === 'PCL') {
+    bullets.push(`A £25 charge will be incurred if Premium Credit are required to write to you to remind you to sign your credit agreement`);
   }
-  s += `The first instalment will be                                    ${fmt(c.firstInstalment)}\n`;
-  s += `followed by ${followOnCount} monthly instalments of                             ${followOnAmt}\n`;
+  bullets.push(`If ${providerName} is unable to collect under your Direct Debit, they may cancel your agreement. You'll be liable for all sums owing and the total annual charges`);
+  bullets.push(`Missing payments may affect your credit rating and your insurance policy may be cancelled`);
+  bullets.push(`If you don't sign and return your agreement, you may need to find another way to pay for your insurance policy`);
+  bullets.push(`You can withdraw from the agreement free of charge within 14 days starting the day after you enter into the agreement. If you do, you'll have to pay back any credit you've received. You can give notice by phoning, emailing or writing to ${providerName}`);
+  bullets.push(`Please note that as you are a company / partnership consisting of four or more persons you will not benefit from protections under the Consumer Credit Act 1974 or the Consumer Credit Sourcebook of the Financial Conduct Authority`);
+  blocks.push({ type: 'p', text: 'There are some important things you need to know about this agreement:' });
+  blocks.push({ type: 'bullets', items: bullets });
+
+  blocks.push({ type: 'q', text: 'Would you like to set up your payments now?' });
+  blocks.push({ type: 'q', text: 'Are you the account holder of a UK Bank or Building Society and you are the only person required to authorise debits?' });
+  blocks.push({ type: 'flag', text: 'If customer answers no to either question, arrange to send paper version of DDI and close call.' });
+  blocks.push({ type: 'q', text: 'Please confirm the name, sort code and account number of the account you wish to be debited?', sub: '(Take details)' });
+  blocks.push({ type: 'q', text: 'Let me repeat them back to you. The account name is [account name], sort code is [sort code], the account number is [account number], is this correct?' });
+  blocks.push({ type: 'p', text: `If there are any changes to your Direct Debit, ${providerName} will always give you two working days' notice.` });
+  blocks.push({ type: 'p', text: `The company name which will appear on your bank statement will be ${providerName}.` });
+  blocks.push({ type: 'p', text: 'All Direct Debits are protected by a guarantee.' });
+  blocks.push({ type: 'q', text: 'Would you like me to read that guarantee to you now or are you happy to wait for the copy in your Welcome Pack?' });
+  blocks.push({ type: 'note', text: `Only if customer requests: In the future if there is a change to the date, amount or frequency of your Direct Debit, ${providerName} will always give you two working days' notice in advance of your account being debited. In the event of an error, you are entitled to an immediate refund from your bank or building society. You have the right to cancel at any time and this guarantee is offered by all the banks and building societies that accept instructions to pay Direct Debits. A copy of the safeguards under the Direct Debit Guarantee will be sent to you with the confirmation letter.` });
+  blocks.push({ type: 'p', text: 'Your Direct Debit Instruction is now set up.' });
+
   if (depositTaken) {
-    s += `Your 20% deposit paid upfront would be                          ${fmt(c.deposit)}\n`;
-  }
-  s += `----------------------------------------\n\n`;
-  s += `To assess your application, ${providerName} may use credit scoring, credit reference agencies and automated decision-making systems.\n\n`;
-  s += `[Q] Taking into account the company's recent and projected income and expenditure, do you have sufficient free cash flow to meet the minimum monthly repayments for this agreement?\n`;
-  s += `   Yes -> proceed.   No -> do not offer finance\n\n`;
-  s += `[Q] Are you aware of any circumstances that could affect the ability of the company to meet the minimum repayments on time for the lifetime of this agreement?\n`;
-  s += `   No -> proceed.   Yes -> do not offer finance\n\n`;
-  s += `${providerName} will contact you via email requesting an electronic signature be completed within 27 days of the inception of the agreement. In the event this is not completed you may need to find another way to pay for the insurance.\n\n`;
-  s += `There are some important things you need to know about this agreement:\n\n`;
-  s += `- It's only appropriate for funding your insurance policy\n`;
-  s += `- If you fail to pay an instalment on time you'll be charged a default fee of ${fmt(c.defaultFee)}, this will be collected with the missed payment\n`;
-  s += `- If ${providerName} is unable to collect under your Direct Debit, they may cancel your agreement. You'll be liable for all sums owing and the total annual charges\n`;
-  s += `- Missing payments may affect your credit rating and your insurance policy may be cancelled\n`;
-  s += `- If you don't sign and return your agreement, you may need to find another way to pay for your insurance policy\n`;
-  s += `- You can withdraw from the agreement free of charge within 14 days starting the day after you enter into the agreement. If you do, you'll have to pay back any credit you've received. You can give notice by phoning, emailing or writing to ${providerName}\n`;
-  s += `- Please note that as you are a company / partnership consisting of four or more persons you will not benefit from protections under the Consumer Credit Act 1974 or the Consumer Credit Sourcebook of the Financial Conduct Authority\n\n`;
-  s += `[Q] Would you like to set up your payments now?\n\n`;
-  s += `[Q] Are you the account holder of a UK Bank or Building Society and you are the only person required to authorise debits?\n\n`;
-  s += `[FLAG] If customer answers no to either question, arrange to send paper version of DDI and close call.\n\n`;
-  s += `[Q] Please confirm the name, sort code and account number of the account you wish to be debited?\n`;
-  s += `(Take details)\n\n`;
-  s += `[Q] Let me repeat them back to you. The account name is [account name], sort code is [sort code], the account number is [account number], is this correct?\n\n`;
-  s += `If there are any changes to your Direct Debit, ${providerName} will always give you two working days' notice.\n\n`;
-  s += `The company name which will appear on your bank statement will be ${providerName}.\n\n`;
-  s += `All Direct Debits are protected by a guarantee.\n\n`;
-  s += `[Q] Would you like me to read that guarantee to you now or are you happy to wait for the copy in your Welcome Pack?\n\n`;
-  s += `[ONLY IF CUSTOMER REQUESTS]\n`;
-  s += `In the future if there is a change to the date, amount or frequency of your Direct Debit, ${providerName} will always give you two working days' notice in advance of your account being debited. In the event of an error, you are entitled to an immediate refund from your bank or building society. You have the right to cancel at any time and this guarantee is offered by all the banks and building societies that accept instructions to pay Direct Debits. A copy of the safeguards under the Direct Debit Guarantee will be sent to you with the confirmation letter.\n\n`;
-  s += `Your Direct Debit Instruction is now set up.\n\n`;
-  if (depositTaken) {
-    s += `----------------------------------------\n`;
-    s += `[Q] Please confirm method of payment for your deposit of ${fmt(c.deposit)} (BACS/Card Payment etc.)\n`;
-    s += `Selected: ${depositMethod}\n`;
+    blocks.push({ type: 'q', text: `Please confirm method of payment for your deposit of ${fmt(c.deposit)} (BACS / Card Payment etc.)`, sub: `Selected: ${depositMethod}` });
     if (depositMethod === 'Card') {
-      s += `[FLAG] Card payment chosen for the deposit — transfer the client to Accounts now.\n`;
+      blocks.push({ type: 'flag', text: 'Card payment chosen for the deposit — transfer the client to Accounts now.' });
     }
   }
 
-  s = s.replace(new RegExp(clientName, 'g'), clientName); // placeholder for future name-personalisation
-  document.getElementById('scriptBox').innerHTML = escapeHtml(s)
-    .replace(/\[Q\](.*?)(?=\n)/g, '<span class="qtext">[Q]$1</span>')
-    .replace(/\[FLAG\](.*?)(?=\n)/g, '<span class="flag">[FLAG]$1</span>')
-    .replace(/\n/g, '<br>');
-  window._rawScript = s;
+  // Render HTML
+  let html = '';
+  blocks.forEach(b => {
+    if (b.type === 'p') {
+      html += `<p class="s-p">${escapeHtml(b.text)}</p>`;
+    } else if (b.type === 'q') {
+      html += `<div class="s-q"><span class="s-q-tag">Q</span><span>${escapeHtml(b.text)}</span></div>`;
+      if (b.sub) html += `<div class="s-sub">${escapeHtml(b.sub)}</div>`;
+    } else if (b.type === 'flag') {
+      html += `<div class="s-flag"><span class="s-flag-tag">FLAG</span><span>${escapeHtml(b.text)}</span></div>`;
+    } else if (b.type === 'note') {
+      html += `<div class="s-note">${escapeHtml(b.text)}</div>`;
+    } else if (b.type === 'bullets') {
+      html += '<ul class="s-bullets">' + b.items.map(i => `<li>${escapeHtml(i)}</li>`).join('') + '</ul>';
+    } else if (b.type === 'figures') {
+      html += '<div class="s-figures">' + b.items.map(([l, v]) => `<div class="s-figrow"><span>${escapeHtml(l)}</span><span class="s-figval">${escapeHtml(v)}</span></div>`).join('') + '</div>';
+    }
+  });
+  document.getElementById('scriptBox').innerHTML = html;
+
+  // Build plain text version for clipboard
+  let raw = '';
+  blocks.forEach(b => {
+    if (b.type === 'p') raw += `${b.text}\n\n`;
+    else if (b.type === 'q') { raw += `[Q] ${b.text}\n`; if (b.sub) raw += `${b.sub}\n`; raw += '\n'; }
+    else if (b.type === 'flag') raw += `[FLAG] ${b.text}\n\n`;
+    else if (b.type === 'note') raw += `[ONLY IF CUSTOMER REQUESTS] ${b.text}\n\n`;
+    else if (b.type === 'bullets') { raw += b.items.map(i => `- ${i}`).join('\n') + '\n\n'; }
+    else if (b.type === 'figures') { raw += b.items.map(([l, v]) => `${l}: ${v}`).join('\n') + '\n\n'; }
+  });
+  window._rawScript = raw.trim();
 }
 
 function escapeHtml(str) {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function copySummary() {
+  const c = window._lastCalc;
+  if (!c) return;
+  let lines = [];
+  lines.push(`Total premium: ${fmt(c.premium)}`);
+  if (depositTaken) lines.push(`Deposit (20%): ${fmt(c.deposit)}`);
+  lines.push(`Amount financed: ${fmt(c.amountFinanced)}`);
+  lines.push(`Interest rate applied: ${(c.interestRate*100).toFixed(1)}%`);
+  lines.push(`Finance charge (interest): ${fmt(c.interest)}`);
+  lines.push(`Facility / arrangement fee: ${fmt(c.facilityFee)}`);
+  lines.push(`Total charge for credit: ${fmt(c.totalChargeForCredit)}`);
+  lines.push(`APR (representative): ${c.apr.toFixed(1)}%`);
+  lines.push(`Total amount repayable under finance agreement: ${fmt(c.totalPayable)}`);
+  lines.push('');
+  c.instalments.forEach((amt, i) => {
+    lines.push(`Instalment ${i+1}${i===0 ? ' (incl. facility fee)' : ''}: ${fmt(amt)}`);
+  });
+  const text = lines.join('\n');
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.target;
+    const old = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = old, 1200);
+  });
 }
 
 function copyScript() {
