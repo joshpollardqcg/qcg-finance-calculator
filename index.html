@@ -461,8 +461,8 @@ function recalc() {
     ['Total premium', fmt(c.premium)],
     depositTaken ? ['Deposit (20%)', fmt(c.deposit)] : null,
     ['Amount financed', fmt(c.amountFinanced)],
-    ['Interest rate applied', (c.interestRate*100).toFixed(1) + '%'],
-    ['Finance charge (interest)', fmt(c.interest)],
+    ['Interest rate (transaction fee) applied', (c.interestRate*100).toFixed(1) + '%'],
+    ['Finance charge (interest / transaction fee)', fmt(c.interest)],
     ['Facility / arrangement fee', fmt(c.facilityFee)],
     ['Total charge for credit', fmt(c.totalChargeForCredit)],
     ['APR (representative)', c.apr.toFixed(1) + '%'],
@@ -512,18 +512,20 @@ function buildScript(c) {
   // types: 'p' (paragraph), 'q' (question), 'flag', 'bullets' (array), 'figures' (array of [label,value]), 'note'
   const blocks = [];
 
-  blocks.push({ type: 'p', text: `We use ${providerName} to provide finance as part of a panel of lenders. We are acting as the credit broker. We may receive a commission for introducing customers to them. This commission is included in the total cost of your agreement and will be confirmed in writing by your finance provider.` });
+  blocks.push({ type: 'p', text: `We use ${providerName} to provide finance as part of a panel of lenders. We are acting as the credit broker. We may receive a commission for introducing customers to them. This commission is included in the total cost of your agreement and will be confirmed in writing by your finance provider. Your personal information and the bank details you provide to us will be passed to them and they will contact you via email, text or in writing and send PDF or Word documents. Credit is subject to status, and they may use a credit reference agency that leaves a record of the search or other information about you to conduct credit and anti-money laundering checks. This record will be visible to third parties.` });
   blocks.push({ type: 'q', text: `Do you agree for your personal data to be passed to ${providerName} for the administration of your agreement?` });
   blocks.push({ type: 'p', text: `If you have any questions about your agreement you can contact ${providerName} on ${providerPhone}.` });
 
   const figures = [
     ["Total amount you'll pay to finance your insurance", fmt(c.totalPayable)],
-    ['Which includes interest of', fmt(c.interest)],
+    ['Which includes interest (transaction fee) of', fmt(c.interest)],
   ];
   if (c.facilityFee > 0) figures.push(['And a facility fee included in the first instalment of', fmt(c.facilityFee)]);
   figures.push(['The first instalment will be', fmt(c.firstInstalment)]);
   figures.push([`Followed by ${followOnCount} monthly instalments of`, followOnAmt]);
   if (depositTaken) figures.push(['Your 20% deposit paid upfront would be', fmt(c.deposit)]);
+  figures.push(['Total cost of credit', fmt(c.totalChargeForCredit)]);
+  figures.push(['APR (representative)', c.apr.toFixed(1) + '%']);
   blocks.push({ type: 'figures', items: figures });
 
   blocks.push({ type: 'p', text: `To assess your application, ${providerName} may use credit scoring, credit reference agencies and automated decision-making systems.` });
@@ -609,16 +611,12 @@ function copySummary() {
   lines.push(`Total premium: ${fmt(c.premium)}`);
   if (depositTaken) lines.push(`Deposit (20%): ${fmt(c.deposit)}`);
   lines.push(`Amount financed: ${fmt(c.amountFinanced)}`);
-  lines.push(`Interest rate applied: ${(c.interestRate*100).toFixed(1)}%`);
-  lines.push(`Finance charge (interest): ${fmt(c.interest)}`);
+  lines.push(`Interest rate (transaction fee) applied: ${(c.interestRate*100).toFixed(1)}%`);
+  lines.push(`Finance charge (interest / transaction fee): ${fmt(c.interest)}`);
   lines.push(`Facility / arrangement fee: ${fmt(c.facilityFee)}`);
   lines.push(`Total charge for credit: ${fmt(c.totalChargeForCredit)}`);
   lines.push(`APR (representative): ${c.apr.toFixed(1)}%`);
   lines.push(`Total amount repayable under finance agreement: ${fmt(c.totalPayable)}`);
-  lines.push('');
-  c.instalments.forEach((amt, i) => {
-    lines.push(`Instalment ${i+1}${i===0 ? ' (incl. facility fee)' : ''}: ${fmt(amt)}`);
-  });
   const text = lines.join('\n');
   navigator.clipboard.writeText(text).then(() => {
     const btn = event.target;
