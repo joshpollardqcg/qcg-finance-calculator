@@ -293,16 +293,16 @@
         <div class="toggle-btn" id="depNo" onclick="setDeposit(false)">No</div>
       </div>
 
-      <div id="pclCompanyTypeWrap">
-        <label>Client legal structure (PCL default fee only)</label>
+      <div id="pclCompanyTypeWrap" style="margin-top:16px;">
+        <label style="margin-top:0;">Client legal structure (PCL default fee only)</label>
         <select id="companyType">
           <option value="ltd">Ltd Company</option>
           <option value="other">Sole Trader / LLP / Partnership</option>
         </select>
       </div>
 
-      <div id="depositMethodWrap" style="display:none">
-        <label>Deposit payment method</label>
+      <div id="depositMethodWrap" style="display:none; margin-top:16px;">
+        <label style="margin-top:0;">Deposit payment method</label>
         <select id="depositMethod">
           <option value="BACS">BACS</option>
           <option value="Card">Card Payment</option>
@@ -331,7 +331,7 @@
 
       <div class="tabpanel active" id="tabSummary">
         <div class="section-title">Summary calculation</div>
-        <button class="copy-btn" onclick="copySummary()">Copy summary (for Acturis)</button>
+        <button class="copy-btn" onclick="copySummary(event)">Copy summary (for Acturis)</button>
         <table id="summaryTable"></table>
         <div class="section-title" style="margin-top:18px;">Instalment schedule</div>
         <div class="instalment-list" id="instalmentList"></div>
@@ -339,7 +339,7 @@
       </div>
 
       <div class="tabpanel" id="tabScript">
-        <button class="copy-btn" onclick="copyScript()">Copy script to clipboard</button>
+        <button class="copy-btn" onclick="copyScript(event)">Copy script to clipboard</button>
         <div class="script-box" id="scriptBox"></div>
       </div>
     </div>
@@ -496,11 +496,6 @@ function recalc() {
   buildScript(c);
 }
 
-function ordinal(n) {
-  const s = ["th","st","nd","rd"], v = n % 100;
-  return n + (s[(v-20)%10] || s[v] || s[0]);
-}
-
 function buildScript(c) {
   const clientName = document.getElementById('clientName').value || '[Client Name]';
   const providerName = document.getElementById('providerName').value || 'the finance provider';
@@ -605,7 +600,7 @@ function escapeHtml(str) {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-function copySummary() {
+function copySummary(evt) {
   const c = window._lastCalc;
   if (!c) return;
   let lines = [];
@@ -623,7 +618,7 @@ function copySummary() {
   const text = lines.join('\n');
   const html = `<div style="margin:0;padding:0;line-height:1.3;">${lines.map(escapeHtml).join('<br>')}</div>`;
   const doCopy = () => navigator.clipboard.writeText(text);
-  const btn = event.target;
+  const btn = evt.currentTarget;
   const flashCopied = () => {
     const old = btn.textContent;
     btn.textContent = 'Copied!';
@@ -644,9 +639,9 @@ function copySummary() {
   }
 }
 
-function copyScript() {
+function copyScript(evt) {
   navigator.clipboard.writeText(window._rawScript || '').then(() => {
-    const btn = document.querySelector('.copy-btn');
+    const btn = evt.currentTarget;
     const old = btn.textContent;
     btn.textContent = 'Copied!';
     setTimeout(() => btn.textContent = old, 1200);
